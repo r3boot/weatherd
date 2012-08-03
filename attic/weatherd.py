@@ -40,6 +40,10 @@ _d_user = 'nobody'
 _d_chroot = '/var/empty'
 _d_logfile = '/var/log/weatherd.log'
 _d_loglevel = 'INFO'
+_d_stdout = True
+_d_packetlog = False
+_d_averagelog = False
+_d_graphite = False
 
 class Graphing(threading.Thread):
     pass
@@ -440,6 +444,20 @@ if __name__ == '__main__':
     logging_opts.add_argument('--loglevel', dest='loglevel',
         type=str, nargs=1, default=_d_loglevel,
         help='Loglevel to use (%s)' % _d_loglevel)
+
+    output_opts = parser.add_argument_group('Output options')
+    output_opts.add_argument('--stdout', dest='stdout',
+        type=str, nargs='?', default=_d_stdout,
+        help='Send output to stdout (%s)' % _d_stdout)
+    output_opts.add_argument('--packetlog', dest='packetlog',
+        type=str, nargs='?', default=_d_packetlog,
+        help='Log each individual packet (%s)' % _d_packetlog)
+    output_opts.add_argument('--averagelog', dest='averagelog',
+        type=str, nargs='?', default=_d_averagelog,
+        help='Log the average values (%s)' % _d_averagelog)
+    output_opts.add_argument('--graphite', dest='graphite',
+        type=str, nargs='*', default=_d_graphite,
+        help='Log to graphite (%s)' % _d_graphite)
 
     args = parser.parse_args()
 
