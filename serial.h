@@ -21,7 +21,7 @@ int64_t get_time_sec();
 int int_to_rate(int baudrate);
 int serial_set_baudrate(int baudrate);
 int setup_serial(char *port_name, int baudrate, int databits, int stopbits, int parity);
-int serial_read(uint8_t* data, int len, int64_t usecs);
+int serial_read(char *data, int len, int64_t usecs);
 void serial_close();
 void serial_setdtr(bool high);
 void serial_setrts(bool high);

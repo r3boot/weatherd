@@ -22,7 +22,7 @@
 int opt_daemonize = -1;
 int opt_verbose = -1;
 char *opt_line = "/dev/tty01";
-int opt_baudrate = 1200;
+int opt_baudrate = 57600;
 int opt_parity = 0;
 int opt_databits = 8;
 int opt_stopbits = 1;
@@ -148,13 +148,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	setup_logging(opt_verbose, PACKAGE);
-	/*if (setup_redis() == 0) {
-		log_debug("connected to redis-server");
-	} else {
-		printf("%s: - failed to connect to redis server\n", PACKAGE);
-		exit(1);
-	}
-	*/
 
 	if (setup_serial(opt_line, opt_baudrate, opt_databits, opt_stopbits, opt_parity) == -1) {
 		log_error("failed to setup serial\n");
@@ -177,8 +170,6 @@ int main(int argc, char *argv[]) {
 
 	run_threads();
 
-
 	serial_close();
-	// redis_disconnect();
 
 }

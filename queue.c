@@ -94,7 +94,7 @@ void queue_dequeue(queue Q) {
 }
 
 ElementType queue_get(queue Q) {
-	
+
 	ElementType X = 0;
 
 	if (queue_is_empty(Q)) {

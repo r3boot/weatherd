@@ -10,6 +10,7 @@ import os
 import pwd
 import select
 import serial
+import subprocess
 import sys
 import threading
 import time
@@ -36,6 +37,9 @@ _d_daemonize = False
 _d_verbose = False
 _d_line = '/dev/tty01'
 _d_speed = 57600
+_d_gpio = 'gpio1'
+_d_gpio_pin = 'ws_reset'
+_d_reset = False
 _d_user = 'nobody'
 _d_chroot = '/var/empty'
 _d_logfile = '/var/log/weatherd.log'
@@ -348,6 +352,89 @@ class WeatherStationReceiver:
             if packet:
                 self.q.put(packet)
 
+class GPIO:
+    def __init__(self, *args, **kwargs):
+        self._gpio = False
+        self._gpio_pin = False
+
+        if not 'device' in kwargs:
+            logger.error('GPIO() requires a gpio device to work on')
+        else:
+            self._gpio = kwargs['gpio']
+
+        if not 'pin' in kwargs:
+            logger.error('GPIO() requires a gpio pin to work on')
+        else:
+            self._gpio_pin = kwargs['gpio_pin']
+
+        if self._gpio and self._gpio_pin:
+            logger.info('Reset working through pin %s on %s' % (self._gpio_pin, self._gpio))
+        else:
+            logger.info('Reset functionality disabled')
+
+    def __destroy__(self, *args, **kwargs):
+        self.pin_set(0)
+
+    def pin_set(self, *args, **kwargs):
+        if not self._gpio and not self._gpio_pin:
+            logger.error('Failed to set gpio pin')
+            return
+
+        if len(args) == 0:
+            logger.error('GPIO.pin_set() requires a value')
+        elif not isinstance(args[0], int):
+            logger.error('GPIO.pin_set() value needs to be int')
+
+        cmd = ['/usr/sbin/gpioctl', '-q', self._gpio, self._gpio_pin, args[0]]
+        gpioctl = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        gpioctl.wait(gpioctl.pid())
+
+    def reset(self):
+        self.pin_set(1)
+        time.sleep(0.05)
+        self.pin_set(0)
+
+class Serial:
+    def __init__(self, *args, **kwargs):
+        if 'line' in kwargs:
+            self._line = kwargs['line']
+        else:
+            logger.error('Serial() requires a line to work on')
+            self._line = False
+
+        if 'speed' in kwargs:
+            self._speed = kwargs['speed']
+        else:
+            logger.error('Serial() requires a baudrate to work with')
+            self._speed = False
+
+        self._port = False
+        self._fd = False
+
+    def __destroy__(self):
+        self.close()
+
+    def connect(self):
+        if self._port:
+            logger.warning('%s is already opened' % self._port)
+            return
+
+        if self._port and self._speed:
+            self._port = serial.Serial(self._port, self._speed)
+            self._fd = self.port.fileno()
+            logger.debug('%s %s (%s%s%s)' % (self._tty, self._speed, self.port.bytesize, self.port.parity, self.port.stopbits))
+        else:
+            logger.error('Unable to open serial port')
+
+    def close(self):
+        if self._port:
+            logger.debug('closing serial port %s' % self._port)
+            self._fd = False
+            self._port.close()
+            self._port = False
+        else:
+            logger.debug('serial port %s already closed' % self._port)
+
 def setup_logging(opts):
     ## Setup logging
     loglevel = getattr(logging, opts.loglevel.upper(), None)
@@ -416,30 +503,39 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     service_opts = parser.add_argument_group('Service options')
-    service_opts.add_argument('-d', '--daemonize', dest='daemonize',
-        type=str, nargs='?', default=_d_daemonize, const=True,
+    service_opts.add_argument('-d', dest='daemonize', type=str,
+        nargs='?', default=_d_daemonize, const=True,
         help='Run as a daemon (%s)' % _d_daemonize)
-    service_opts.add_argument('-v', '--verbose', dest='verbose',
-        type=str, nargs='?', default=_d_verbose, const=True,
+    service_opts.add_argument('-v', dest='verbose', type=str,
+        nargs='?', default=_d_verbose, const=True,
         help='Show verbose output (%s)' % _d_verbose)
-    service_opts.add_argument('-u', '--user', dest='user',
-        type=str, nargs=1, default=_d_user,
+    service_opts.add_argument('-u', dest='user', type=str,
+        nargs=1, default=_d_user,
         help='User to run as (%s)' % _d_user)
-    service_opts.add_argument('-c', '--chroot', dest='chroot',
-        type=str, nargs=1, default=_d_chroot,
+    service_opts.add_argument('-c', dest='chroot', type=str,
+        nargs=1, default=_d_chroot,
         help='Chroot to this directory (%s)' % _d_chroot)
 
     serial_opts = parser.add_argument_group('Serial options')
-    serial_opts.add_argument('-l', '--line', dest='line',
-        type=str, nargs=1, default=_d_line,
+    serial_opts.add_argument('-l', dest='line', type=str,
+        nargs=1, default=_d_line,
         help='Serial port to listen on (%s)' % _d_line)
-    serial_opts.add_argument('-s', '--speed', dest='speed',
-        type=int, nargs=1, default=_d_speed,
+    serial_opts.add_argument('-s', dest='speed', type=int,
+        nargs=1, default=_d_speed,
         help='Baudrate to use (%s)' % _d_speed)
+    serial_opts.add_argument('-r', dest='reset', type=str,
+        nargs='?', default=_d_reset,
+        help='Reset the serial port (%s)' % _d_reset)
+    serial_opts.add_argument('--gpio', dest='gpio', type=str,
+        nargs=1, default=_d_gpio,
+        help='GPIO chip to use for reset (%s)' % _d_gpio)
+    serial_opts.add_argument('--gpiopin', dest='gpiopin', type=str,
+        nargs=1, default=_d_gpio,
+        help='GPIO pin to use for reset (%s)' % _d_gpio_pin)
 
     logging_opts = parser.add_argument_group('Logging options')
-    logging_opts.add_argument('-L', '--logfile', dest='logfile',
-        type=str, nargs=1, default=_d_logfile,
+    logging_opts.add_argument('-L', dest='logfile', type=str,
+        nargs=1, default=_d_logfile,
         help='Log to this file (%s)' % _d_logfile)
     logging_opts.add_argument('--loglevel', dest='loglevel',
         type=str, nargs=1, default=_d_loglevel,
@@ -462,6 +558,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     logger = setup_logging(args)
+
+    gpio = GPIO(device=args.gpio, pin=args.gpio_pin)
+    gpio.pin_set(0)
+
+    serial_port = Serial(line=args.line, speed=args.speed)
+    serial_port.connect()
 
     wsr = WeatherStationReceiver(args.line, args.speed)
     wsr.setup_serial()

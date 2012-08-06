@@ -16,7 +16,7 @@
 #define PAR_ODD 2
 
 char *line = "/dev/tty01";
-int speed = 1200;
+int speed = 57600;
 int databits = 8;
 int parity = PAR_NONE;
 int stopbits = 1;
@@ -82,7 +82,7 @@ int serial_set_baudrate(int baudrate) {
 		log_debug(buf);
 		return -1;
 	}
-		  
+
 	//get the current port attributes
 	if (tcgetattr(serial_fd, &m_options) != 0) {
 		log_debug("failed to get current port attributes");
@@ -157,7 +157,7 @@ int setup_serial(char *port_name, int baudrate, int databits, int stopbits, int 
 		m_options.c_cflag &= ~CSTOPB;
 	else
 		m_options.c_cflag |= CSTOPB;
-								  
+
 	m_options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG | XCASE | ECHOK | ECHONL | ECHOCTL | ECHOPRT | ECHOKE | TOSTOP);
 
 	if (parity == PAR_NONE)
@@ -172,16 +172,16 @@ int setup_serial(char *port_name, int baudrate, int databits, int stopbits, int 
 		log_debug("failed to set terminal attributes");
 		return -1;
 	}
-			    
+
 	fcntl(serial_fd, F_SETFL, FNDELAY);
 
 	log_debug("serial initialized");
 
-	return 0;
+	return serial_fd;
 
 }
 
-int serial_read(uint8_t* data, int len, int64_t usecs /*= -1*/)
+int serial_read(char *data, int len, int64_t usecs /*= -1*/)
 {
 	fd_set port;
 	struct timeval timeout, *tv;
@@ -195,14 +195,18 @@ int serial_read(uint8_t* data, int len, int64_t usecs /*= -1*/)
 	int64_t target = now + usecs;
 	int bytesread = 0;
 
+	FD_ZERO(&port);
+	FD_SET(serial_fd, &port);
+
 	while (bytesread < len) {
 		if (usecs < 0) {
 			tv = NULL;
 		} else {
 			if (now > target) {
+				// log_debug("timeout reached");
 				break;
 			}
-													        
+
 			timeout.tv_sec = (target - now) / 1000000LL;
 			timeout.tv_usec = (target - now) % 1000000LL;
 			tv = &timeout;
@@ -210,20 +214,23 @@ int serial_read(uint8_t* data, int len, int64_t usecs /*= -1*/)
 
 		FD_ZERO(&port);
 		FD_SET(serial_fd, &port);
+
 		int returnv = select(serial_fd + 1, &port, NULL, NULL, tv);
 
 		if (returnv == -1) {
 			log_debug("select returned -1");
 			return -1;
 		} else if (returnv == 0) {
+			// log_debug("nothing to read\n");
 			break; //nothing to read
 		}
 
 		returnv = read(serial_fd, data + bytesread, len - bytesread);
 		if (returnv == -1) {
-			log_debug("failed to read data from serial port");
+			// log_debug("failed to read data from serial port");
 			return -1;
 		} else if (returnv > 0) {
+			// printf("received: %d\n", returnv);
 			bytesread += returnv;
 			break;
 		}
@@ -231,17 +238,20 @@ int serial_read(uint8_t* data, int len, int64_t usecs /*= -1*/)
 		now = get_time_us();
 	}
 
-	/*
 	if (bytesread > 0) {
+		// printf("data: %s\n", data);
+		/*
 		printf("%s read:", line);
 
 		for (int i = 0; i < bytesread; i++) {
 			printf("[%d] 0x%02x", i, (unsigned int)data[i]);
 		}
-			
+
 		printf("\n");
+		*/
 	}
-	*/
+
+	data[bytesread + 1] = '\0';
 
 	return bytesread;
 }

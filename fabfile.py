@@ -7,3 +7,13 @@ def sync(name='soekris'):
     #with settings(host_string=name):
     #    with cd('/home/r3boot/weatherd'):
     #        run('sudo ./weatherd.py')
+
+def build(name='soekris'):
+    with settings(host_string=name):
+        with cd('/home/r3boot/weatherd'):
+            run('make clean')
+            run('make')
+
+def deploy(name='soekris'):
+    sync(name)
+    build(name)
