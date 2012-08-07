@@ -9,7 +9,6 @@
 #include "serial.h"
 #include "packet.h"
 #include "aggregate.h"
-#include "redis.h"
 #include "queue.h"
 
 #define SERIAL_BUFFER_MAX 1
