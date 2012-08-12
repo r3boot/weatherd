@@ -4,7 +4,6 @@
 #define AGGREGATE_TIME 60
 
 pthread_mutex_t Qp_mutex;
-queue Qp;   // queue between serial and packet
 
 void *serial_thread(void *queue_ptr);
 void *packet_thread(void *queue_ptr);

@@ -4,12 +4,13 @@
 #include <time.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/queue.h>
 
 #include "logging.h"
 #include "serial.h"
 #include "packet.h"
 #include "aggregate.h"
-#include "queue.h"
+// #include "queue.h"
 
 #define SERIAL_BUFFER_MAX 1
 #define RAW_PACKET_SIZE 80
@@ -20,61 +21,37 @@
 pthread_mutex_t Qp_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t aggregate_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-queue Qp; 	// queue between serial and packet
+struct rp_entry {
+	char *payload;
+	SIMPLEQ_ENTRY(rp_entry) rp_entries;
+};
+
+SIMPLEQ_HEAD(, rp_entry) rp_head = SIMPLEQ_HEAD_INITIALIZER(rp_head);
 
 void *serial_thread(void *queue_ptr) {
 
-	char in[SERIAL_BUFFER_MAX + 1];
-	char raw_packet[RAW_PACKET_SIZE];
+	char raw_packet[254] = "\0";
 
-	int size = 0;
-	int j = 0;
-
-	int msg_seen = -1;
+	struct rp_entry *rpe = NULL;
 
 	log_debug("starting serial thread");
 	while (1) {
-		size = serial_read(in, 1, 1000);
-		if (size > 0) {
 
-			switch (*in) {
-				case '#':
-					// printf("[start]: raw_packet: %s; in: %s; j: %d\n", raw_packet, in, j);
-					raw_packet[0] = in[0];
-					j += 1;
+		if (serial_readln(raw_packet) == 0) {
+			printf("raw_packet: %s\n", raw_packet);
 
-					// TODO: WHY HERE???
-					if (msg_seen == 0) {
-						printf("%s\n", raw_packet);
-						msg_seen = -1;
-					}
-					// printf("[start]: raw_packet: %s; in: %s; j: %d\n", raw_packet, in, j);
-					break;
-				case '$':
-					raw_packet[j] = in[0];
-					raw_packet[j+1] = '\0';
-					// printf("[end]:   raw_packet: %s; in: %s; j: %d\n", raw_packet, in, j);
-					msg_seen = 0;
-					j = 0;
-					in[0] = '\0';
-					raw_packet[0] = '\0';
-					break;
-				default:
-					if (j > 0) {
-						raw_packet[j] = in[0];
-						j += 1;
-						// printf("[infli]: raw_packet: %s; in: %s; j: %d\n", raw_packet, in, j);
-					}
-					break;
+			pthread_mutex_lock(&Qp_mutex);
+			if (!(rpe = (struct rp_entry *)malloc(sizeof(struct rp_entry)))) {
+				log_debug("serial_thread: malloc failed");
+				return NULL;
+			} else {
+				rpe->payload = raw_packet;
+				printf("push: %s\n", raw_packet);
+				SIMPLEQ_INSERT_TAIL(&rp_head, rpe, rp_entries);
 			}
-
-
-			// pthread_mutex_lock(&Qp_mutex);
-			// queue_enqueue(in[0], Qp);
-			// pthread_mutex_unlock(&Qp_mutex);
-		} else if (size < 0) {
-			log_debug("error reading port");
+			pthread_mutex_unlock(&Qp_mutex);
 		}
+
 	}
 
 	return 0;
@@ -82,24 +59,30 @@ void *serial_thread(void *queue_ptr) {
 
 void *packet_thread(void *queue_ptr) {
 
-	uint8_t value;
-	struct s_packet packet;
+	// char *raw_packet;
+	struct rp_entry *rpe = NULL;
+	// struct s_packet packet;
 	time_t t_start, t_cur;
 
 	log_debug("starting packet thread");
 	reset_packet_stats();
 	t_start = time(NULL);
 	while (1) {
-		if (!queue_is_empty(Qp)) {
+		if (!(SIMPLEQ_EMPTY(&rp_head))) {
 			t_cur = time(NULL);
 			if ((t_cur - t_start) > RESET_STATS_TIME) {
 				reset_packet_stats();
 				t_start = t_cur;
 			}
 			pthread_mutex_lock(&Qp_mutex);
-			value = (uint8_t)queue_get(Qp);
+			rpe = SIMPLEQ_FIRST(&rp_head);
+			SIMPLEQ_REMOVE_HEAD(&rp_head, rp_entries);
 			pthread_mutex_unlock(&Qp_mutex);
 
+			printf("pop: %s\n", rpe->payload);
+			free(rpe);
+
+			/*
 			if (packet_process_byte(value) == 0) {
 				packet = get_packet();
 
@@ -107,6 +90,7 @@ void *packet_thread(void *queue_ptr) {
 				update_aggregates(packet);
 				pthread_mutex_unlock(&aggregate_mutex);
 			}
+			*/
 		} else {
 			sleep(1);
 		}
@@ -143,7 +127,7 @@ void run_threads() {
 	pthread_t t_serial, t_packet, t_aggregate;
 	int t_serial_ret, t_packet_ret, t_aggregate_ret;
 
-	Qp = queue_create(QUEUE_SIZE);
+	// Qp = queue_create(QUEUE_SIZE);
 
 	t_serial_ret = pthread_create(&t_serial, NULL, serial_thread, NULL);
 	t_packet_ret = pthread_create(&t_packet, NULL, packet_thread, NULL);
@@ -152,4 +136,5 @@ void run_threads() {
 	pthread_join(t_serial, NULL);
 	pthread_join(t_packet, NULL);
 	pthread_join(t_aggregate, NULL);
+
 }

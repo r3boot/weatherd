@@ -15,6 +15,8 @@
 #define PAR_EVEN 1
 #define PAR_ODD 2
 
+#define MAX_LINE_SIZE 254
+
 char *line = "/dev/tty01";
 int speed = 57600;
 int databits = 8;
@@ -254,6 +256,32 @@ int serial_read(char *data, int len, int64_t usecs /*= -1*/)
 	data[bytesread + 1] = '\0';
 
 	return bytesread;
+}
+
+int serial_readln(char *line) {
+	char buffer;
+	int size = 0;
+	int have_line = -1;
+	uint8_t i = 0;
+
+	while( have_line == -1) {
+		size = serial_read(&buffer, 1, 1000);
+		if (size > 0) {
+			if (buffer == '\n') {
+				line[i] = '\0';
+				have_line = 0;
+				i = 0;
+			} else {
+				line[i] = buffer;
+				i += 1;
+			}
+		} else if (size < 0) {
+			log_debug("serial_readln: error reading port");
+			return -1;
+		}
+	}
+
+	return 0;
 }
 
 void serial_close() {
