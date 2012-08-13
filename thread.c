@@ -10,7 +10,6 @@
 #include "serial.h"
 #include "packet.h"
 #include "aggregate.h"
-// #include "queue.h"
 
 #define SERIAL_BUFFER_MAX 1
 #define RAW_PACKET_SIZE 80
@@ -18,8 +17,9 @@
 #define RESET_STATS_TIME 86400
 #define AGGREGATE_TIME 60
 
-pthread_mutex_t Qp_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t aggregate_mutex = PTHREAD_MUTEX_INITIALIZER;
+// serial -> packet
+pthread_mutex_t rp_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t rp_cond = PTHREAD_COND_INITIALIZER;
 
 struct rp_entry {
 	char *payload;
@@ -28,28 +28,36 @@ struct rp_entry {
 
 SIMPLEQ_HEAD(, rp_entry) rp_head = SIMPLEQ_HEAD_INITIALIZER(rp_head);
 
+// packet -> collectors
+pthread_mutex_t p_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t p_cond = PTHREAD_COND_INITIALIZER;
+
+struct p_entry {
+	struct s_packet *packet;
+	SIMPLEQ_ENTRY(p_entry) p_entries;
+};
+
+SIMPLEQ_HEAD(, p_entry) p_head = SIMPLEQ_HEAD_INITIALIZER(p_head);
+
+
 void *serial_thread(void *queue_ptr) {
-
 	char raw_packet[254] = "\0";
-
 	struct rp_entry *rpe = NULL;
 
 	log_debug("starting serial thread");
 	while (1) {
 
 		if (serial_readln(raw_packet) == 0) {
-			printf("raw_packet: %s\n", raw_packet);
-
-			pthread_mutex_lock(&Qp_mutex);
 			if (!(rpe = (struct rp_entry *)malloc(sizeof(struct rp_entry)))) {
 				log_debug("serial_thread: malloc failed");
 				return NULL;
-			} else {
-				rpe->payload = raw_packet;
-				printf("push: %s\n", raw_packet);
-				SIMPLEQ_INSERT_TAIL(&rp_head, rpe, rp_entries);
 			}
-			pthread_mutex_unlock(&Qp_mutex);
+
+			rpe->payload = raw_packet;
+			pthread_mutex_lock(&rp_mutex);
+			SIMPLEQ_INSERT_TAIL(&rp_head, rpe, rp_entries);
+			pthread_cond_signal(&rp_cond);
+			pthread_mutex_unlock(&rp_mutex);
 		}
 
 	}
@@ -58,38 +66,54 @@ void *serial_thread(void *queue_ptr) {
 }
 
 void *packet_thread(void *queue_ptr) {
-
-	// char *raw_packet;
 	struct rp_entry *rpe = NULL;
-	// struct s_packet packet;
+	struct p_entry *p = NULL;
+	struct s_packet *packet = NULL;
 	time_t t_start, t_cur;
 
 	log_debug("starting packet thread");
-	reset_packet_stats();
+	// reset_packet_stats();
 	t_start = time(NULL);
 	while (1) {
 		if (!(SIMPLEQ_EMPTY(&rp_head))) {
 			t_cur = time(NULL);
 			if ((t_cur - t_start) > RESET_STATS_TIME) {
-				reset_packet_stats();
+				// reset_packet_stats();
 				t_start = t_cur;
 			}
-			pthread_mutex_lock(&Qp_mutex);
+
+			pthread_mutex_lock(&rp_mutex);
+			pthread_cond_wait(&rp_cond, &rp_mutex);
+
 			rpe = SIMPLEQ_FIRST(&rp_head);
 			SIMPLEQ_REMOVE_HEAD(&rp_head, rp_entries);
-			pthread_mutex_unlock(&Qp_mutex);
 
-			printf("pop: %s\n", rpe->payload);
+			pthread_mutex_unlock(&rp_mutex);
+
+			if (!(packet = (struct s_packet *)malloc(sizeof(struct s_packet)))) {
+				printf("packet_thread: s_packet malloc failed\n");
+				return NULL;
+			}
+
+			packet = process_packet(rpe->payload);
 			free(rpe);
 
-			/*
-			if (packet_process_byte(value) == 0) {
-				packet = get_packet();
+			update_aggregates(packet);
 
-				pthread_mutex_lock(&aggregate_mutex);
-				update_aggregates(packet);
-				pthread_mutex_unlock(&aggregate_mutex);
+			if (!(p = (struct p_entry *)malloc(sizeof(struct p_entry)))) {
+				printf("packet_thread: p_entry malloc failed\n");
+				return NULL;
 			}
+			p->packet = packet;
+			free(packet);
+
+			/*
+			pthread_mutex_lock(&p_mutex);
+
+			SIMPLEQ_INSERT_TAIL(&p_head, p, p_entries);
+			pthread_cond_signal(&p_cond);
+
+			pthread_mutex_unlock(&p_mutex);
 			*/
 		} else {
 			sleep(1);
@@ -110,10 +134,9 @@ void *aggregate_thread(void *queue_ptr) {
 	while (1) {
 		t_end = time(NULL);
 		if ((t_end - t_start) > AGGREGATE_TIME) {
-			pthread_mutex_lock(&aggregate_mutex);
+			pthread_mutex_lock(&p_mutex);
 			values = calculate_aggregates();
-			pthread_mutex_unlock(&aggregate_mutex);
-			print_packet_stats();
+			pthread_mutex_unlock(&p_mutex);
 			t_start = time(NULL);
 		} else {
 			sleep(1);

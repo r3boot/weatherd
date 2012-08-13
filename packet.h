@@ -42,6 +42,7 @@ struct s_packet_stats {
 	unsigned int data_bytes;
 };
 
+struct s_packet *process_packet(char *payload);
 struct s_packet get_packet();
 int packet_process_byte(uint8_t byte);
 void reset_packet_stats();

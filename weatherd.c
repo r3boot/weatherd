@@ -12,7 +12,6 @@
 #include "serial.h"
 #include "packet.h"
 #include "aggregate.h"
-#include "queue.h"
 #include "thread.h"
 
 #define PACKAGE 	"weatherd"
@@ -167,6 +166,7 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
+	init_aggregates();
 	run_threads();
 
 	serial_close();

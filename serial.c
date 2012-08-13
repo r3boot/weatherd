@@ -9,7 +9,6 @@
 #include "serial.h"
 #include "baudrates.h"
 #include "logging.h"
-#include "queue.h"
 
 #define PAR_NONE 0
 #define PAR_EVEN 1

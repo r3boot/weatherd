@@ -6,32 +6,38 @@
 #include "packet.h"
 #include "aggregate.h"
 
-struct s_aggregate A;
+struct s_aggregate *A = NULL;
 
 int num_packets;
 
+void init_aggregates() {
+	if (!(A = (struct s_aggregate *)malloc(sizeof(struct s_aggregate)))) {
+		printf("init_aggregates: malloc failed\n");
+	}
+}
+
 void reset_aggregates() {
-	A.host_id = 0;
-	A.temperature = 0.0;
-	A.humidity = 0.0;
-	A.rainfall = 0.0;
-	A.pressure = 0;
-	A.wind_speed = 0.0;
-	A.wind_direction = 0;
-	A.light = 0.0;
+	A->host_id = 0;
+	A->temperature = 0.0;
+	A->humidity = 0.0;
+	A->rainfall = 0.0;
+	A->pressure = 0;
+	A->wind_speed = 0.0;
+	A->wind_direction = 0;
+	A->light = 0.0;
 
 	num_packets = 0;
 }
 
-int update_aggregates(struct s_packet packet) {
-	A.host_id = packet.host_id;
-	A.temperature += packet.temperature;
-	A.humidity += packet.humidity;
-	A.rainfall += packet.rainfall;
-	A.pressure += packet.pressure;
-	A.wind_speed += packet.wind_speed;
-	A.wind_direction += packet.wind_direction;
-	A.light += packet.light;
+int update_aggregates(struct s_packet *packet) {
+	A->host_id = packet->host_id;
+	A->temperature += packet->temperature;
+	A->humidity += packet->humidity;
+	A->rainfall += packet->rainfall;
+	A->pressure += packet->pressure;
+	A->wind_speed += packet->wind_speed;
+	A->wind_direction += packet->wind_direction;
+	A->light += packet->light;
 
 	num_packets += 1;
 	return 0;
@@ -48,15 +54,15 @@ struct_aggregate calculate_aggregates() {
 	values.wind_direction = 0;
 	values.light = 0.0;
 
-	values.host_id = A.host_id;
+	values.host_id = A->host_id;
 
 	if (num_packets > 0) {
-		values.pressure = (A.pressure / num_packets);
-		values.wind_direction = (A.wind_direction / num_packets);
-		values.temperature = (A.temperature / num_packets);
-		values.humidity = (A.humidity / num_packets);
-		values.rainfall = (A.rainfall / num_packets);
-		values.light = (A.light / num_packets);
+		values.pressure = (A->pressure / num_packets);
+		values.wind_direction = (A->wind_direction / num_packets);
+		values.temperature = (A->temperature / num_packets);
+		values.humidity = (A->humidity / num_packets);
+		values.rainfall = (A->rainfall / num_packets);
+		values.light = (A->light / num_packets);
 	}
 
 	log_debug("AVERAGES");
@@ -64,10 +70,11 @@ struct_aggregate calculate_aggregates() {
 	printf("temperature:    %.02f C\n", values.temperature);
 	printf("pressure:       %d Pa\n", (unsigned int)values.pressure);
 	printf("humidity:       %.02f%%\n", values.humidity);
-	printf("wind_speed:     %.02f M/s\n", values.wind_speed);
-	printf("wind_direction: %d\n", (unsigned int)values.wind_direction);
-	printf("light           %.02f lux\n\n", values.light);
-	
+	printf("light           %.02f lux\n", values.light);
+	printf("wind speed:     %.02f M/s\n", values.wind_speed);
+	printf("wind direction: %d\n", (unsigned int)values.wind_direction);
+	printf("rainfall:       %.02f mm/s\n\n", values.rainfall);
+
 	reset_aggregates();
 	return values;
 }
