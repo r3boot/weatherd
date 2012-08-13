@@ -14,11 +14,15 @@
 #include "aggregate.h"
 #include "thread.h"
 
-#define PACKAGE 	"weatherd"
+#ifdef HAVE_GPIO
+#include "gpio.h"
+#endif
+
 #define VERSION 	"0.1"
 
 int opt_daemonize = -1;
 int opt_verbose = -1;
+int opt_samples = 60;
 char *opt_line = "/dev/tty01";
 int opt_baudrate = 57600;
 int opt_parity = 0;
@@ -26,15 +30,23 @@ int opt_databits = 8;
 int opt_stopbits = 1;
 char *opt_user = "nobody";
 char *opt_chroot = "/var/empty";
+#ifdef HAVE_GPIO
+int opt_reset = -1;
+char *opt_gpiodev = "gpio1";
+int opt_gpiopin = 16;
+#endif
+
+extern char *__progname;
 
 void usage() {
-	printf("Usage: weatherd [options]\n");
+	printf("Usage: %s [options]\n", __progname);
 	printf("\n");
 	printf("Options:\n");
 	printf(" -h,        --help          show this help message and exit\n");
 	printf(" -V,        --version       show the program version and exit\n");
 	printf(" -d,        --daemonize     daemonize on startup (%d)\n", opt_daemonize);
 	printf(" -v,        --verbose       show verbose output (%d)\n", opt_verbose);
+	printf(" -a N       --samples=N     aggregate N samples (%d)\n", opt_samples);
 	printf(" -l PORT,   --line=PORT     serial port to connect to (%s)\n", opt_line);
 	printf(" -s SPEED,  --speed=SPEED   baudrate to use (%d)\n", opt_baudrate);
 	if (opt_parity == PAR_EVEN) {
@@ -48,11 +60,16 @@ void usage() {
 	printf(" -S N,      --stopbits=N    use N stopbits (%d)\n", opt_stopbits);
 	printf(" -u USER,   --user=USER     user to run as (%s)\n", opt_user);
 	printf(" -c PATH,   --chroot=PATH   chroot to this directory (%s)\n", opt_chroot);
+#ifdef HAVE_GPIO
+	printf(" -r,        --reset         reset the weatherstation main unit (%d)\n", opt_reset);
+	printf(" -G,        --gpiodev       gpio device used for resetting (%s)\n", opt_gpiodev);
+	printf(" -P,        --gpiopin       gpio pin used for resetting (%d)\n", opt_gpiopin);
+#endif
 	exit(1);
 }
 
 void version() {
-	printf("%s %s\n", PACKAGE, VERSION);
+	printf("%s %s\n", __progname, VERSION);
 	exit(1);
 }
 
@@ -66,6 +83,12 @@ int main(int argc, char *argv[]) {
 		{"version", 	no_argument, 		NULL, 	'V'},
 		{"daemonize", 	no_argument, 		NULL, 	'd'},
 		{"verbose", 	no_argument, 		NULL, 	'v'},
+#ifdef HAVE_GPIO
+		{"reset", 		no_argument, 		NULL, 	'r'},
+		{"gpiodev", 	required_argument, 	NULL, 	'G'},
+		{"gpiopin", 	required_argument, 	NULL, 	'P'},
+#endif
+		{"samples", 	required_argument, 	NULL, 	'a'},
 		{"line", 		required_argument, 	NULL, 	'l'},
 		{"speed", 		required_argument, 	NULL, 	's'},
 		{"parity", 		required_argument, 	NULL, 	'p'},
@@ -76,7 +99,11 @@ int main(int argc, char *argv[]) {
 		{NULL, 			0, 					NULL, 	0}
 	};
 
-	while ((ch = getopt_long(argc, argv, "hVdvl:s:p:D:S:u:c:", longopts, NULL)) != -1)
+#ifdef HAVE_GPIO
+	while ((ch = getopt_long(argc, argv, "hVdvra:l:s:p:D:S:u:c:", longopts, NULL)) != -1)
+#else
+	while ((ch = getopt_long(argc, argv, "hVdva:l:s:p:D:S:u:c:", longopts, NULL)) != -1)
+#endif
 		switch (ch) {
 			case 'd':
 				opt_daemonize = 0;
@@ -84,14 +111,27 @@ int main(int argc, char *argv[]) {
 			case 'v':
 				opt_verbose = 0;
 				break;
+#ifdef HAVE_GPIO
+			case 'r':
+				opt_reset = 0;
+				break;
+			case 'G':
+				opt_gpiodev = argv[optind];
+				break;
+			case 'P':
+				opt_gpiopin = atoi(argv[optind]);
+				break;
+#endif
+			case 'a':
+				opt_samples = atoi(argv[optind]);
+				break;
 			case 'l':
 				opt_line = argv[optind];
 				break;
 			case 's':
-				opt_baudrate = (int)argv[optind];
+				opt_baudrate = atoi(argv[optind]);
 				break;
 			case 'p':
-				printf("bla: %s\n\n", argv[optind]);
 				if (strcmp(argv[optind], "even"))  {
 					opt_parity = PAR_EVEN;
 				} else if (strcmp(argv[optind], "odd")) {
@@ -99,15 +139,15 @@ int main(int argc, char *argv[]) {
 				} else if (strcmp(argv[optind], "none")) {
 					opt_parity = PAR_NONE;
 				} else {
-					printf("%s: Error - parity needs to be one of (even|odd|none)\n\n", PACKAGE);
+					printf("%s: Error - parity needs to be one of (even|odd|none)\n\n", __progname);
 					usage();
 				}
 				break;
 			case 'D':
-				opt_databits = (int)argv[optind];
+				opt_databits = atoi(argv[optind]);
 				break;
 			case 'S':
-				opt_stopbits = (int)argv[optind];
+				opt_stopbits = atoi(argv[optind]);
 				break;
 			case 'u':
 				opt_user = argv[optind];
@@ -122,11 +162,11 @@ int main(int argc, char *argv[]) {
 				version();
 				break;
 			case ':':
-				printf("%s: Error - Option `%c' needs a value\n\n", PACKAGE, ch);
+				printf("%s: Error - Option `%c' needs a value\n\n", __progname, ch);
 				usage();
 				break;
 			case '?':
-				printf("%s: Error - No such option: `%c'\n\n", PACKAGE, ch);
+				printf("%s: Error - No such option: `%c'\n\n", __progname, ch);
 				usage();
 				break;
 			default:
@@ -138,14 +178,25 @@ int main(int argc, char *argv[]) {
 	argc -= optind;
 	argv += optind;
 
+	setup_logging(opt_verbose, __progname);
+
+#ifdef HAVE_GPIO
+	setup_gpio(opt_gpiodev, opt_gpiopin);
+
+	if (opt_reset == 0) {
+		gpio_reset();
+		exit(0);
+	}
+#endif
+
+	setup_aggregates(opt_samples);
+
 	if (opt_daemonize != -1) {
 		if (daemon(1, 1) == -1) {
-			printf("%s: - failed to daemonize\n", PACKAGE);
+			printf("%s: - failed to daemonize\n", __progname);
 			exit(1);
 		}
 	}
-
-	setup_logging(opt_verbose, PACKAGE);
 
 	if (setup_serial(opt_line, opt_baudrate, opt_databits, opt_stopbits, opt_parity) == -1) {
 		log_error("failed to setup serial\n");
@@ -166,7 +217,6 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	setup_aggregates();
 	run_threads();
 
 	serial_close();

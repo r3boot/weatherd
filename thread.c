@@ -1,15 +1,21 @@
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/time.h>
 #include <sys/queue.h>
 
 #include "logging.h"
 #include "serial.h"
 #include "packet.h"
 #include "aggregate.h"
+
+#ifdef HAVE_GPIO
+#include "gpio.h"
+#endif
 
 #define SERIAL_BUFFER_MAX 1
 #define RAW_PACKET_SIZE 80
@@ -25,7 +31,6 @@ struct rp_entry {
 	char *payload;
 	SIMPLEQ_ENTRY(rp_entry) rp_entries;
 };
-
 SIMPLEQ_HEAD(, rp_entry) rp_head = SIMPLEQ_HEAD_INITIALIZER(rp_head);
 
 // packet -> aggregates
@@ -36,9 +41,13 @@ struct pa_entry {
 	struct s_packet *packet;
 	SIMPLEQ_ENTRY(pa_entry) pa_entries;
 };
-
 SIMPLEQ_HEAD(, pa_entry) pa_head = SIMPLEQ_HEAD_INITIALIZER(pa_head);
 
+struct ag_entry {
+	struct s_packet *packet;
+	SLIST_ENTRY(ag_entry) ag_entries;
+};
+SLIST_HEAD(, ag_head) ag_head = SLIST_HEAD_INITIALIZER(ag_head);
 
 void *serial_thread(void *queue_ptr) {
 	char raw_packet[254] = "\0";
@@ -96,14 +105,14 @@ void *packet_thread(void *queue_ptr) {
 			pae->packet = packet;
 			free(packet);
 
+			pthread_mutex_lock(&pa_mutex);
+			SIMPLEQ_INSERT_TAIL(&pa_head, pae, pa_entries);
+			pthread_cond_signal(&pa_cond);
+			pthread_mutex_unlock(&pa_mutex);
+
 		}
 
 		pthread_mutex_unlock(&rp_mutex);
-
-		pthread_mutex_lock(&pa_mutex);
-		SIMPLEQ_INSERT_TAIL(&pa_head, pae, pa_entries);
-		pthread_cond_signal(&pa_cond);
-		pthread_mutex_unlock(&pa_mutex);
 
 	}
 
@@ -112,6 +121,7 @@ void *packet_thread(void *queue_ptr) {
 
 void *aggregate_thread(void *queue_ptr) {
 	struct pa_entry *pae = NULL;
+	struct ag_entry *age = NULL;
 
 	log_debug("starting aggregate thread");
 	while (1) {
@@ -122,6 +132,11 @@ void *aggregate_thread(void *queue_ptr) {
 		SIMPLEQ_REMOVE_HEAD(&pa_head, pa_entries);
 		pthread_mutex_unlock(&pa_mutex);
 
+		if (!(age = (struct ag_entry *)malloc(sizeof(struct ag_entry)))) {
+			log_debug("aggregate_thread: malloc failed");
+			return NULL;
+		}
+
 		update_aggregates(pae->packet);
 		free(pae);
 
@@ -129,12 +144,32 @@ void *aggregate_thread(void *queue_ptr) {
 	return 0;
 }
 
-void run_threads() {
+void aggregates_timer_handler(int signum) {
+	log_debug("calculating averages");
+}
+
+void setup_aggregate_timer(int num_samples) {
+	struct sigaction sa;
+	struct itimerval timer;
+	memset(&sa, 0, sizeof(sa));
+
+	sa.sa_handler = &aggregates_timer_handler;
+	sigaction(SIGALRM, &sa, NULL);
+	timer.it_value.tv_sec = num_samples;
+	timer.it_value.tv_usec = 0;
+	timer.it_interval.tv_sec = num_samples;
+	timer.it_interval.tv_usec = 0 ;
+	setitimer ( ITIMER_REAL, &timer, NULL ) ;
+}
+
+void run_threads(int num_samples) {
 	pthread_t t_serial, t_packet, t_aggregate;
 	int t_serial_ret, t_packet_ret, t_aggregate_ret;
 
-	// Qp = queue_create(QUEUE_SIZE);
+	// Start timers
+	setup_aggregate_timer(num_samples);
 
+	// Start main threads
 	t_serial_ret = pthread_create(&t_serial, NULL, serial_thread, NULL);
 	t_packet_ret = pthread_create(&t_packet, NULL, packet_thread, NULL);
 	t_aggregate_ret = pthread_create(&t_aggregate, NULL, aggregate_thread, NULL);

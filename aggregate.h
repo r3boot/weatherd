@@ -11,9 +11,7 @@ struct s_aggregate {
 	float light;
 };
 
-typedef struct s_aggregate struct_aggregate;
-
-void setup_aggregates();
+void setup_aggregates(int num_samples);
 void reset_aggregates();
 int update_aggregates(struct s_packet *packet);
-struct_aggregate calculate_aggregates();
+struct s_aggregate *calculate_aggregates();
