@@ -28,16 +28,16 @@ struct rp_entry {
 
 SIMPLEQ_HEAD(, rp_entry) rp_head = SIMPLEQ_HEAD_INITIALIZER(rp_head);
 
-// packet -> collectors
-pthread_mutex_t p_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t p_cond = PTHREAD_COND_INITIALIZER;
+// packet -> aggregates
+pthread_mutex_t pa_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t pa_cond = PTHREAD_COND_INITIALIZER;
 
-struct p_entry {
+struct pa_entry {
 	struct s_packet *packet;
-	SIMPLEQ_ENTRY(p_entry) p_entries;
+	SIMPLEQ_ENTRY(pa_entry) pa_entries;
 };
 
-SIMPLEQ_HEAD(, p_entry) p_head = SIMPLEQ_HEAD_INITIALIZER(p_head);
+SIMPLEQ_HEAD(, pa_entry) pa_head = SIMPLEQ_HEAD_INITIALIZER(pa_head);
 
 
 void *serial_thread(void *queue_ptr) {
@@ -67,28 +67,17 @@ void *serial_thread(void *queue_ptr) {
 
 void *packet_thread(void *queue_ptr) {
 	struct rp_entry *rpe = NULL;
-	struct p_entry *p = NULL;
+	struct pa_entry *pae = NULL;
 	struct s_packet *packet = NULL;
-	time_t t_start, t_cur;
 
 	log_debug("starting packet thread");
-	// reset_packet_stats();
-	t_start = time(NULL);
 	while (1) {
+		pthread_mutex_lock(&rp_mutex);
+		pthread_cond_wait(&rp_cond, &rp_mutex);
+
 		if (!(SIMPLEQ_EMPTY(&rp_head))) {
-			t_cur = time(NULL);
-			if ((t_cur - t_start) > RESET_STATS_TIME) {
-				// reset_packet_stats();
-				t_start = t_cur;
-			}
-
-			pthread_mutex_lock(&rp_mutex);
-			pthread_cond_wait(&rp_cond, &rp_mutex);
-
 			rpe = SIMPLEQ_FIRST(&rp_head);
 			SIMPLEQ_REMOVE_HEAD(&rp_head, rp_entries);
-
-			pthread_mutex_unlock(&rp_mutex);
 
 			if (!(packet = (struct s_packet *)malloc(sizeof(struct s_packet)))) {
 				printf("packet_thread: s_packet malloc failed\n");
@@ -98,49 +87,43 @@ void *packet_thread(void *queue_ptr) {
 			packet = process_packet(rpe->payload);
 			free(rpe);
 
-			update_aggregates(packet);
+			// update_aggregates(packet);
 
-			if (!(p = (struct p_entry *)malloc(sizeof(struct p_entry)))) {
+			if (!(pae = (struct pa_entry *)malloc(sizeof(struct pa_entry)))) {
 				printf("packet_thread: p_entry malloc failed\n");
 				return NULL;
 			}
-			p->packet = packet;
+			pae->packet = packet;
 			free(packet);
 
-			/*
-			pthread_mutex_lock(&p_mutex);
-
-			SIMPLEQ_INSERT_TAIL(&p_head, p, p_entries);
-			pthread_cond_signal(&p_cond);
-
-			pthread_mutex_unlock(&p_mutex);
-			*/
-		} else {
-			sleep(1);
 		}
+
+		pthread_mutex_unlock(&rp_mutex);
+
+		pthread_mutex_lock(&pa_mutex);
+		SIMPLEQ_INSERT_TAIL(&pa_head, pae, pa_entries);
+		pthread_cond_signal(&pa_cond);
+		pthread_mutex_unlock(&pa_mutex);
+
 	}
 
 	return 0;
 }
 
 void *aggregate_thread(void *queue_ptr) {
-
-	time_t t_start, t_end;
-
-	struct_aggregate values;
+	struct pa_entry *pae = NULL;
 
 	log_debug("starting aggregate thread");
-	t_start = time(NULL);
 	while (1) {
-		t_end = time(NULL);
-		if ((t_end - t_start) > AGGREGATE_TIME) {
-			pthread_mutex_lock(&p_mutex);
-			values = calculate_aggregates();
-			pthread_mutex_unlock(&p_mutex);
-			t_start = time(NULL);
-		} else {
-			sleep(1);
-		}
+		pthread_mutex_lock(&pa_mutex);
+		pthread_cond_wait(&pa_cond, &pa_mutex);
+
+		pae = SIMPLEQ_FIRST(&pa_head);
+		SIMPLEQ_REMOVE_HEAD(&pa_head, pa_entries);
+		pthread_mutex_unlock(&pa_mutex);
+
+		update_aggregates(pae->packet);
+		free(pae);
 
 	}
 	return 0;

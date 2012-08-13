@@ -1,64 +1,79 @@
+#include <sys/types.h>
+#include <sys/gpio.h>
+#include <sys/ioctl.h>
+
+#include <err.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <sys/queue.h>
-#include <pthread.h>
+#include <string.h>
+#include <fcntl.h>
+#include <paths.h>
 
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+char *dev;
+int devfd = -1;
 
-struct entry {
-	char *value;
-	SIMPLEQ_ENTRY(entry) entries;
-};
+void setup_gpio(char *dev);
+void gpio_pin_write(int pin, char *pin_name, int value);
+void gpio_reset();
 
-SIMPLEQ_HEAD(, entry) head = SIMPLEQ_HEAD_INITIALIZER(head);
-
-void *push_thread(void *ptr);
-void *pop_thread(void *ptr);
-
-void *push_thread(void *ptr) {
-	struct entry *e = NULL;
-	// char *bla = "hello";
-	for (int i=0; i<5; i+=1) {
-		pthread_mutex_lock(&mutex);
-		if (!(e = (struct entry *)malloc(sizeof(struct entry)))) {
-			printf("push_thread: malloc failed for %d\n", i);
-			return NULL;
-		}
-		snprintf(e->value, 2, "%d\0", i);
-		SIMPLEQ_INSERT_TAIL(&head, e, entries);
-		printf("push_thread: %s inserted\n", e->value);
-		free(e);
-		pthread_mutex_unlock(&mutex);
+void setup_gpio(char *dev) {
+	char devn[32];
+	if (strncmp(_PATH_DEV, dev, sizeof(_PATH_DEV) - 1)) {
+		(void)snprintf(devn, sizeof(devn), "%s%s", _PATH_DEV, dev);
+		dev = devn;
 	}
 
-	return NULL;
+	if ((devfd = open(dev, O_RDWR)) == -1) {
+		err(1, "%s", dev);
+	}
 }
 
-void *pop_thread(void *ptr) {
-	struct entry *e = NULL;
-	sleep(5);
-	while (1) {
-		if (!(SIMPLEQ_EMPTY(&head))) {
-			pthread_mutex_lock(&mutex);
-			e = SIMPLEQ_FIRST(&head);
-			SIMPLEQ_REMOVE_HEAD(&head, entries);
-			printf("pop_thread: %s removed\n", e->value);
-			pthread_mutex_unlock(&mutex);
-		} else {
-			sleep(1);
+void gpio_pin_write(int pin, char *pin_name, int value) {
+	struct gpio_pin_op op;
+
+	bzero(&op, sizeof(op));
+	if (pin_name != NULL) {
+		strlcpy(op.gp_name, pin_name, sizeof(op.gp_name));
+	} else {
+		op.gp_pin = pin;
+	}
+	op.gp_value = (value == 0 ? GPIO_PIN_LOW : GPIO_PIN_HIGH);
+
+	if (value < 2) {
+		if (ioctl(devfd, GPIOPINWRITE, &op) == -1) {
+			err(1, "GPIOPINWRITE");
+		}
+	} else {
+		if (ioctl(devfd, GPIOPINTOGGLE, &op) == -1) {
+			err(1, "GPIOPINTOGGLE");
 		}
 	}
+
+	if (pin_name) {
+		printf("pin %s: state %d -> %d\n", pin_name, op.gp_value,
+			(value < 2 ? value : 1 - op.gp_value));
+	} else {
+		printf("pin %d: state %d -> %d\n", pin, op.gp_value,
+			(value < 2 ? value : 1 - op.gp_value));
+	}
+}
+
+void gpio_reset() {
+	gpio_pin_write(0, "ws_reset", 1);
+	usleep(5000);
+	gpio_pin_write(0, "ws_reset", 0);
 }
 
 int main(int argc, char *argv[]) {
-	pthread_t t_push, t_pop;
-	int t_push_ret, t_pop_ret;
+	extern char *__progname;
 
-	t_push_ret = pthread_create(&t_push, NULL, push_thread, NULL);
-	t_pop_ret = pthread_create(&t_pop, NULL, pop_thread, NULL);
+	if (argc < 2) {
+		printf("usage: %s <device>\n", __progname);
+		return -1;
+	}
+	dev = argv[1];
 
-	pthread_join(t_push, NULL);
-	pthread_join(t_pop, NULL);
+	setup_gpio(dev);
+	gpio_reset();
 
 }

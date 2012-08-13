@@ -13,7 +13,7 @@ struct s_aggregate {
 
 typedef struct s_aggregate struct_aggregate;
 
-void init_aggregates();
+void setup_aggregates();
 void reset_aggregates();
 int update_aggregates(struct s_packet *packet);
 struct_aggregate calculate_aggregates();

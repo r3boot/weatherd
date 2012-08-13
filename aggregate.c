@@ -1,6 +1,9 @@
+#include <signal.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
 
 #include "logging.h"
 #include "packet.h"
@@ -10,10 +13,9 @@ struct s_aggregate *A = NULL;
 
 int num_packets;
 
-void init_aggregates() {
-	if (!(A = (struct s_aggregate *)malloc(sizeof(struct s_aggregate)))) {
-		printf("init_aggregates: malloc failed\n");
-	}
+void aggregates_timer_handler(int signum) {
+	calculate_aggregates();
+	reset_aggregates();
 }
 
 void reset_aggregates() {
@@ -77,4 +79,24 @@ struct_aggregate calculate_aggregates() {
 
 	reset_aggregates();
 	return values;
+}
+
+void setup_aggregates() {
+	if (!(A = (struct s_aggregate *)malloc(sizeof(struct s_aggregate)))) {
+		printf("init_aggregates: malloc failed\n");
+	}
+
+	struct sigaction sa;
+	struct itimerval timer ;
+	memset ( &sa, 0, sizeof ( sa ) ) ;
+
+	sa.sa_handler = &aggregates_timer_handler;
+	sigaction ( SIGALRM, &sa, NULL );
+
+	timer.it_value.tv_sec = 60 ;
+	timer.it_value.tv_usec = 0;
+	timer.it_interval.tv_sec = 60;
+	timer.it_interval.tv_usec = 0 ;
+	setitimer ( ITIMER_REAL, &timer, NULL ) ;
+
 }

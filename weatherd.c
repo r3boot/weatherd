@@ -166,7 +166,7 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	init_aggregates();
+	setup_aggregates();
 	run_threads();
 
 	serial_close();
