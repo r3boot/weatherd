@@ -43,11 +43,15 @@ struct pa_entry {
 };
 SIMPLEQ_HEAD(, pa_entry) pa_head = SIMPLEQ_HEAD_INITIALIZER(pa_head);
 
-struct ag_entry {
-	struct s_packet *packet;
-	SLIST_ENTRY(ag_entry) ag_entries;
+// aggregates -> datalogger
+pthread_mutex_t da_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t da_cond = PTHREAD_COND_INITIALIZER;
+
+struct da_entry {
+	struct s_aggregate *values;
+	SIMPLEQ_ENTRY(da_entry) da_entries;
 };
-SLIST_HEAD(, ag_head) ag_head = SLIST_HEAD_INITIALIZER(ag_head);
+SIMPLEQ_HEAD(, da_entry) da_head = SIMPLEQ_HEAD_INITIALIZER(da_head);
 
 void *serial_thread(void *queue_ptr) {
 	char raw_packet[254] = "\0";
@@ -121,7 +125,8 @@ void *packet_thread(void *queue_ptr) {
 
 void *aggregate_thread(void *queue_ptr) {
 	struct pa_entry *pae = NULL;
-	struct ag_entry *age = NULL;
+	struct da_entry *dae = NULL;
+	struct s_aggregate *aggregates = NULL;
 
 	log_debug("starting aggregate thread");
 	while (1) {
@@ -132,42 +137,55 @@ void *aggregate_thread(void *queue_ptr) {
 		SIMPLEQ_REMOVE_HEAD(&pa_head, pa_entries);
 		pthread_mutex_unlock(&pa_mutex);
 
-		if (!(age = (struct ag_entry *)malloc(sizeof(struct ag_entry)))) {
-			log_debug("aggregate_thread: malloc failed");
-			return NULL;
-		}
-
 		update_aggregates(pae->packet);
 		free(pae);
+
+		if (has_aggregates()) {
+			log_debug("got aggregate");
+			aggregates = get_aggregates();
+
+			if (!(dae = (struct da_entry *)malloc(sizeof(struct da_entry)))) {
+				log_debug("aggregate_thread: dae: malloc failed");
+				return NULL;
+			}
+
+			dae->values = aggregates;
+
+			pthread_mutex_lock(&da_mutex);
+			SIMPLEQ_INSERT_TAIL(&da_head, dae, da_entries);
+			pthread_cond_signal(&da_cond);
+			pthread_mutex_unlock(&da_mutex);
+		}
 
 	}
 	return 0;
 }
 
-void aggregates_timer_handler(int signum) {
-	log_debug("calculating averages");
+void *datalogger_thread(void *queue_ptr) {
+	struct da_entry *dae = NULL;
+	log_debug("starting datalogger thread");
+	while (1) {
+		pthread_mutex_lock(&da_mutex);
+		pthread_cond_wait(&da_cond, &da_mutex);
+		if (!(SIMPLEQ_EMPTY(&da_head))) {
+			dae = SIMPLEQ_FIRST(&da_head);
+			SIMPLEQ_REMOVE_HEAD(&da_head, da_entries);
+			printf("host_id: %d\n", dae->values->host_id);
+			free(dae);
+		}
+		pthread_mutex_unlock(&da_mutex);
+	}
+	return 0;
 }
 
-void setup_aggregate_timer(int num_samples) {
-	struct sigaction sa;
-	struct itimerval timer;
-	memset(&sa, 0, sizeof(sa));
-
-	sa.sa_handler = &aggregates_timer_handler;
-	sigaction(SIGALRM, &sa, NULL);
-	timer.it_value.tv_sec = num_samples;
-	timer.it_value.tv_usec = 0;
-	timer.it_interval.tv_sec = num_samples;
-	timer.it_interval.tv_usec = 0 ;
-	setitimer ( ITIMER_REAL, &timer, NULL ) ;
+void *graphite_thread(void *queue_ptr) {
+	log_debug("starting graphite thread");
+	return 0;
 }
 
-void run_threads(int num_samples) {
+void run_threads() {
 	pthread_t t_serial, t_packet, t_aggregate;
 	int t_serial_ret, t_packet_ret, t_aggregate_ret;
-
-	// Start timers
-	setup_aggregate_timer(num_samples);
 
 	// Start main threads
 	t_serial_ret = pthread_create(&t_serial, NULL, serial_thread, NULL);
