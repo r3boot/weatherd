@@ -6,10 +6,18 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
-char *host = "monitor";
-char *port = "2003";
+#include "graphite.h"
+#include "logging.h"
 
-int main() {
+struct s_graphite_config *gc = NULL;
+
+int setup_graphite(struct s_graphite_config *config) {
+
+	gc = config;
+	return 0;
+}
+
+int graphite_write(struct s_graphite_entry *entry) {
 	struct addrinfo hints, *res, *res0;
 	int error;
 	int save_errno;
@@ -19,7 +27,7 @@ int main() {
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	error = getaddrinfo(host, port, &hints, &res0);
+	error = getaddrinfo(gc->host, gc->port, &hints, &res0);
 	if (error)
 		errx(1, "%s", gai_strerror(error));
 	s = -1;
@@ -39,13 +47,18 @@ int main() {
 			continue;
 		}
 
-		break;  /* okay we got one */
+		break;
 	}
 	if (s == -1)
 		err(1, "%s", cause);
 
-	printf("res->ai_addr: %s\n", res0->ai_addr);
 	freeaddrinfo(res0);
+
+	write(s, &entry->data, sizeof(entry->data));
+
+	close(s);
+
+	log_debug("graphite: submitted values");
 
 	return 0;
 }
