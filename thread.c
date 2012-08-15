@@ -70,6 +70,7 @@ SIMPLEQ_HEAD(, ga_entry) ga_head = SIMPLEQ_HEAD_INITIALIZER(ga_head);
 void *serial_thread(void *queue_ptr) {
 	char raw_packet[254] = "\0";
 	struct rp_entry *rpe = NULL;
+	// char buf[255];
 
 	log_debug("starting serial thread");
 	while (1) {
@@ -79,6 +80,9 @@ void *serial_thread(void *queue_ptr) {
 				log_debug("serial_thread: malloc failed");
 				return NULL;
 			}
+
+			// (void)snprintf(buf, sizeof(buf), "received: %s", raw_packet);
+			// log_debug(buf);
 
 			rpe->payload = raw_packet;
 			pthread_mutex_lock(&rp_mutex);
@@ -114,8 +118,6 @@ void *packet_thread(void *queue_ptr) {
 			packet = process_packet(rpe->payload);
 			free(rpe);
 
-			// update_aggregates(packet);
-
 			if (!(pae = (struct pa_entry *)malloc(sizeof(struct pa_entry)))) {
 				printf("packet_thread: p_entry malloc failed\n");
 				return NULL;
@@ -142,6 +144,7 @@ void *aggregate_thread(void *queue_ptr) {
 	struct da_entry *dae = NULL;
 	struct ga_entry *gae = NULL;
 	struct s_aggregate *aggregates = NULL;
+	// char buf[255];
 
 	log_debug("starting aggregate thread");
 	while (1) {

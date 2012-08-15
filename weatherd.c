@@ -92,6 +92,7 @@ int main(int argc, char *argv[]) {
 	int ch = 0;
 	int newarg = 0;
 	char *buf = "\0";
+	// config_t config;
 
 	static struct option longopts[] = {
 		{"help", 		no_argument, 		NULL, 	'h'},
@@ -214,6 +215,8 @@ int main(int argc, char *argv[]) {
 
 	argc -= optind;
 	argv += optind;
+
+	// load_config("weatherd.conf", &config);
 
 	setup_logging(opt_verbose, __progname);
 

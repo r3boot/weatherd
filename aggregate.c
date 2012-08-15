@@ -60,6 +60,7 @@ int update_aggregates(struct s_packet *packet) {
 
 struct s_aggregate *calculate_aggregates() {
 	struct s_aggregate *values = NULL;
+	char buf[256] = "\0";
 
 	if (!(values = (struct s_aggregate *)malloc(sizeof(struct s_aggregate)))) {
 		log_debug("calculate_aggregates: malloc failed");
@@ -79,6 +80,7 @@ struct s_aggregate *calculate_aggregates() {
 
 	if (num_packets > 0) {
 		values->pressure = (A->pressure / num_packets);
+		values->wind_speed = (A->wind_speed / num_packets);
 		values->wind_direction = (A->wind_direction / num_packets);
 		values->temperature = (A->temperature / num_packets);
 		values->humidity = (A->humidity / num_packets);
@@ -86,15 +88,26 @@ struct s_aggregate *calculate_aggregates() {
 		values->light = (A->light / num_packets);
 	}
 
-	log_debug("AVERAGES");
-	printf("host_id:        %d\n", values->host_id);
-	printf("temperature:    %.02f C\n", values->temperature);
-	printf("pressure:       %d Pa\n", (unsigned int)values->pressure);
-	printf("humidity:       %.02f%%\n", values->humidity);
-	printf("light           %.02f lux\n", values->light);
-	printf("wind speed:     %.02f M/s\n", values->wind_speed);
-	printf("wind direction: %d\n", (unsigned int)values->wind_direction);
-	printf("rainfall:       %.02f mm/s\n\n", values->rainfall);
+	(void)snprintf(buf, sizeof(buf), "average temperature: %.02f C", values->temperature);
+	log_debug(buf);
+
+	(void)snprintf(buf, sizeof(buf), "average pressure: %d Pa", (unsigned int)values->pressure);
+	log_debug(buf);
+
+	(void)snprintf(buf, sizeof(buf), "average humidity: %.02f %%", values->humidity);
+	log_debug(buf);
+
+	(void)snprintf(buf, sizeof(buf), "average light: %.02f lux", values->light);
+	log_debug(buf);
+
+	(void)snprintf(buf, sizeof(buf), "average wind speed: %.02f M/s", values->wind_speed);
+	log_debug(buf);
+
+	(void)snprintf(buf, sizeof(buf), "average wind direction: %d", (unsigned int)values->wind_direction);
+	log_debug(buf);
+
+	(void)snprintf(buf, sizeof(buf), "average rainfall: %.02f mm/s", values->rainfall);
+	log_debug(buf);
 
 	reset_aggregates();
 	return values;
