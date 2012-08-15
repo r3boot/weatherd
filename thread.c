@@ -228,7 +228,7 @@ void *graphite_thread(void *queue_ptr) {
 	struct ga_entry *gae = NULL;
 	struct s_graphite_entry *entry = NULL;
 
-	char buffer[6144];
+	// char buffer[1024];
 	char timestamp[11];
 
 	log_debug("starting graphite thread");
@@ -246,24 +246,23 @@ void *graphite_thread(void *queue_ptr) {
 			struct tm *tm_now = localtime(&gae->timestamp);
 			strftime(timestamp, sizeof(timestamp), "%s", tm_now);
 
-			(void)snprintf(buffer, sizeof(buffer), "system.weatherstation.host_id %d %s\nsystem.weatherstation.temperature %.02f %s\nsystem.weatherstation.pressure %d %s\nsystem.weatherstation.humidity %.02f %s\nsystem.weatherstation.light %.02f %s\nsystem.weatherstation.wind_speed %.02f %s\nsystem.weatherstation.wind_direction %d %s\nsystem.weatherstation.rainfall %.02f %s\n",
-				gae->values->host_id, timestamp,
-				gae->values->temperature, timestamp,
-				(unsigned int)gae->values->pressure, timestamp,
-				gae->values->humidity, timestamp,
-				gae->values->light, timestamp,
-				gae->values->wind_speed, timestamp,
-				(unsigned int)gae->values->wind_direction, timestamp,
-				gae->values->rainfall, timestamp);
-
 			if (!(entry = (struct s_graphite_entry *)malloc(sizeof(struct s_graphite_entry)))) {
 				log_error("graphite_thread: malloc failed");
 			}
 
-			strlcpy(entry->data, buffer, strlen(buffer));
+			entry->host_id = gae->values->host_id;
+			entry->temperature = gae->values->temperature;
+			entry->pressure = gae->values->pressure;
+			entry->humidity = gae->values->humidity;
+			entry->light = gae->values->light;
+			entry->wind_speed = gae->values->wind_speed;
+			entry->wind_direction = gae->values->wind_direction;
+			entry->rainfall = gae->values->rainfall;
+			entry->timestamp = timestamp;
 
 			graphite_write(entry);
 
+			free(entry);
 			free(gae);
 		}
 	}

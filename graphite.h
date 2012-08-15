@@ -6,7 +6,15 @@ struct s_graphite_config {
 };
 
 struct s_graphite_entry {
-	char data[4096];
+	int host_id;
+	float temperature;
+	float humidity;
+	float rainfall;
+	long pressure;
+	float wind_speed;
+	long wind_direction;
+	float light;
+	char *timestamp;
 };
 
 int setup_graphite(struct s_graphite_config *config);

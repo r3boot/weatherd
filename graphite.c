@@ -23,6 +23,7 @@ int graphite_write(struct s_graphite_entry *entry) {
 	int save_errno;
 	int s;
 	const char *cause = NULL;
+	char buf[50];
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
@@ -54,7 +55,29 @@ int graphite_write(struct s_graphite_entry *entry) {
 
 	freeaddrinfo(res0);
 
-	write(s, &entry->data, sizeof(entry->data));
+	(void)snprintf(buf, sizeof(buf), "%s.host_id %d %s\n", gc->namespace, entry->host_id, entry->timestamp);
+	write(s, &buf, strlen(buf));
+
+	(void)snprintf(buf, sizeof(buf), "%s.temperature %.02f %s\n", gc->namespace, entry->temperature, entry->timestamp);
+	write(s, &buf, strlen(buf));
+
+	(void)snprintf(buf, sizeof(buf), "%s.pressure %d %s\n", gc->namespace, (unsigned int)entry->pressure, entry->timestamp);
+	write(s, &buf, strlen(buf));
+
+	(void)snprintf(buf, sizeof(buf), "%s.humidity %.02f %s\n", gc->namespace, entry->humidity, entry->timestamp);
+	write(s, &buf, strlen(buf));
+
+	(void)snprintf(buf, sizeof(buf), "%s.light %.02f %s\n", gc->namespace, entry->light, entry->timestamp);
+	write(s, &buf, strlen(buf));
+
+	(void)snprintf(buf, sizeof(buf), "%s.wind_speed %.02f %s\n", gc->namespace, entry->wind_speed, entry->timestamp);
+	write(s, &buf, strlen(buf));
+
+	(void)snprintf(buf, sizeof(buf), "%s.wind_direction %d %s\n", gc->namespace, (unsigned int)entry->wind_direction, entry->timestamp);
+	write(s, &buf, strlen(buf));
+
+	(void)snprintf(buf, sizeof(buf), "%s.rainfall %.02f %s\n", gc->namespace, entry->rainfall, entry->timestamp);
+	write(s, &buf, strlen(buf));
 
 	close(s);
 
