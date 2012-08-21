@@ -9,6 +9,7 @@ typedef struct {
 #endif
 	int daemonize;
 	int debug;
+	int samples;
 	char *user;
 	char *chroot;
 

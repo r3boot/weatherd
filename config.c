@@ -32,9 +32,10 @@ void load_config(const char *config, config_t *pconfig)
 #endif
 	pconfig->daemonize = 0;
 	pconfig->debug = 0;
+	pconfig->samples = 60;
 	pconfig->user = "nobody";
 	pconfig->chroot = "/var/empty";
-	pconfig->datalog = NULL;
+	pconfig->datalog = "/srv/weatherd";
 	pconfig->graphite = NULL;
 
 	for(;;) {
@@ -77,29 +78,31 @@ void load_config(const char *config, config_t *pconfig)
 		while(*is == ' ') { *is = 0x00 ; is--; }
 
 		if (strcmp(cmd, "serial_line") == 0) {
-			strlcpy(pconfig->serial_line, par, strlen(par));
+			pconfig->serial_line = strdup(par);
 		} else if (strcmp(cmd, "baudrate") == 0) {
-			pconfig->baudrate = atoi(par);
+			pconfig->baudrate = parval;
 #ifdef HAVE_GPIO
 		} else if (strcmp(cmd, "gpio_device") == 0) {
-			strlcpy(pconfig->gpio_device, par, strlen(par));
+			pconfig->gpio_device = strdup(par);
 		} else if (strcmp(cmd, "gpio_pin") == 0 ) {
-			pconfig->gpio_pin = atoi(par);
+			pconfig->gpio_pin = parval;
 #endif
 		} else if (strcmp(cmd, "daemonize") == 0) {
 			pconfig->daemonize = config_yes_no(par);
 		} else if (strcmp(cmd, "debug") == 0) {
 			pconfig->debug = config_yes_no(par);
 		} else if (strcmp(cmd, "user") == 0) {
-			strlcpy(pconfig->user, par, strlen(par));
+			pconfig->user = strdup(par);
 		} else if (strcmp(cmd, "chroot") == 0) {
-			strlcpy(pconfig->chroot, par, strlen(par));
-		} else if (strcmp(cmd, "datalogger") == 0) {
-			strlcpy(pconfig->datalog, par, sizeof(par));
+			pconfig->chroot = strdup(par);
+		} else if (strcmp(cmd, "samples") == 0) {
+			pconfig->samples = parval;
+		} else if (strcmp(cmd, "datalog") == 0) {
+			pconfig->datalog = strdup(par);
 		} else if (strcmp(cmd, "graphite") == 0) {
 			continue;
 		} else {
-			printf("%s=%s not understood", cmd, par);
+			printf("%s=%s not understood\n", cmd, par);
 			exit(1);
 		}
 	}

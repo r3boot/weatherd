@@ -23,22 +23,40 @@
 
 #define VERSION 	"0.9.1"
 
-int opt_daemonize = -1;
-int opt_verbose = -1;
-int opt_samples = 60;
-char *opt_line = "/dev/tty01";
-int opt_baudrate = 57600;
-int opt_parity = 0;
-int opt_databits = 8;
-int opt_stopbits = 1;
-char *opt_user = "nobody";
-char *opt_chroot = "/var/empty";
-char *opt_datalog = "/srv/weatherd";
-struct s_graphite_config *opt_graphite = NULL;
+#define D_DAEMONIZE -1
+#define D_VERBOSE -1
+#define D_SAMPLES 60
+#define D_LINE "/dev/tty01"
+#define D_BAUDRATE 57600
+#define D_PARITY 0
+#define D_DATABITS 8
+#define D_STOPBITS 1
+#define D_USER "nobody"
+#define D_CHROOT "/var/empty"
+#define D_DATALOG "/srv/weatherd"
+#define D_GRAPHITE NULL
 #ifdef HAVE_GPIO
-int opt_reset = -1;
-char *opt_gpiodev = "gpio1";
-int opt_gpiopin = 16;
+#define D_RESET -1
+#define D_GPIODEV "gpio1"
+#define D_GPIOPIN 16
+#endif
+
+int opt_daemonize = D_DAEMONIZE;
+int opt_verbose = D_VERBOSE;;
+int opt_samples = D_SAMPLES;
+char *opt_line = D_LINE;
+int opt_baudrate = D_BAUDRATE;
+int opt_parity = D_PARITY;
+int opt_databits = D_DATABITS;
+int opt_stopbits = D_STOPBITS;
+char *opt_user = D_USER;
+char *opt_chroot = D_CHROOT;
+char *opt_datalog = D_DATALOG;
+struct s_graphite_config *opt_graphite = D_GRAPHITE;
+#ifdef HAVE_GPIO
+int opt_reset = D_RESET;
+char *opt_gpiodev = D_GPIODEV;
+int opt_gpiopin = D_GPIOPIN;
 #endif
 
 extern char *__progname;
@@ -92,7 +110,7 @@ int main(int argc, char *argv[]) {
 	int ch = 0;
 	int newarg = 0;
 	char *buf = "\0";
-	// config_t config;
+	config_t config;
 
 	static struct option longopts[] = {
 		{"help", 		no_argument, 		NULL, 	'h'},
@@ -216,12 +234,34 @@ int main(int argc, char *argv[]) {
 	argc -= optind;
 	argv += optind;
 
-	// load_config("weatherd.conf", &config);
+	load_config("weatherd.conf", &config);
 
-	setup_logging(opt_verbose, __progname);
+	if (strcmp(opt_line, D_LINE) != 0) {
+		config.serial_line = strdup(opt_line);
+	} else if (opt_baudrate != D_BAUDRATE) {
+		config.baudrate = opt_baudrate;
+#ifdef HAVE_GPIO
+	} else if (strcmp(opt_gpiodev, D_GPIODEV) != 0) {
+		config.gpio_device = opt_gpiodev;
+	} else if (opt_gpiopin != D_GPIOPIN) {
+		config.gpio_pin = opt_gpiopin;
+#endif
+	} else if (opt_daemonize != D_DAEMONIZE) {
+		config.daemonize = opt_daemonize;
+	} else if (opt_verbose != D_VERBOSE) {
+		config.debug = opt_verbose;
+	} else if (strcmp(opt_user, D_USER) != 0) {
+		config.user = opt_user;
+	} else if (strcmp(opt_chroot, D_CHROOT) != 0) {
+		config.chroot = opt_chroot;
+	} else if (strcmp(opt_datalog, D_DATALOG) != 0) {
+		config.datalog = opt_datalog;
+	}
+
+	setup_logging(config.debug, __progname);
 
 #ifdef HAVE_GPIO
-	setup_gpio(opt_gpiodev, opt_gpiopin);
+	setup_gpio(config.gpio_device, config.gpio_pin);
 
 	if (opt_reset == 0) {
 		gpio_reset();
@@ -229,9 +269,9 @@ int main(int argc, char *argv[]) {
 	}
 #endif
 
-	setup_aggregates(opt_samples);
+	setup_aggregates(config.samples);
 
-	if (setup_datalogger(opt_datalog) != 0) {
+	if (setup_datalogger(config.datalog) != 0) {
 		exit(1);
 	}
 
@@ -239,25 +279,24 @@ int main(int argc, char *argv[]) {
 		setup_graphite(opt_graphite);
 	}
 
-	if (opt_daemonize != -1) {
+	if (config.daemonize != -1) {
 		if (daemon(1, 1) == -1) {
 			printf("%s: - failed to daemonize\n", __progname);
 			exit(1);
 		}
 	}
 
-	if (setup_serial(opt_line, opt_baudrate, opt_databits, opt_stopbits, opt_parity) == -1) {
+	if (setup_serial(config.serial_line, config.baudrate, opt_databits, opt_stopbits, opt_parity) == -1) {
 		log_error("failed to setup serial\n");
 		exit(1);
 	}
 
 	/*
-	printf("opt_chroot: %s\n", opt_chroot);
-	if (chroot(opt_chroot) == 0) {
-		snprintf(buf, 255, "chrooted to %s", opt_chroot);
+	if (chroot(config.chroot) == 0) {
+		snprintf(buf, 255, "chrooted to %s", config.chroot);
 		log_debug(buf);
 	} else {
-		snprintf(buf, 255, "failed to chroot to %s", opt_chroot);
+		snprintf(buf, 255, "failed to chroot to %s", config.chroot);
 		log_error(buf);
 		exit(1);
 	}
