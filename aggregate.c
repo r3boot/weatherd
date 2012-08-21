@@ -91,7 +91,7 @@ struct s_aggregate *calculate_aggregates() {
 	(void)snprintf(buf, sizeof(buf), "average temperature: %.02f C", values->temperature);
 	log_debug(buf);
 
-	(void)snprintf(buf, sizeof(buf), "average pressure: %d Pa", (unsigned int)values->pressure);
+	(void)snprintf(buf, sizeof(buf), "average pressure: %d hPa", (unsigned int)values->pressure);
 	log_debug(buf);
 
 	(void)snprintf(buf, sizeof(buf), "average humidity: %.02f %%", values->humidity);

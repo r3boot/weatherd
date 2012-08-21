@@ -45,7 +45,7 @@ int datalogger_write(struct s_datalog_entry *entry) {
 		log_error("failed to open logfile");
 	}
 
-	fwrite(entry->line, 1, sizeof(entry->line), fd);
+	fwrite(entry->line, 1, strlen(entry->line), fd);
 
 	fclose(fd);
 	log_debug("datalogger: wrote log entry");
