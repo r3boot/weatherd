@@ -36,7 +36,7 @@ void reset_aggregates() {
 	A->temperature = 0.0;
 	A->humidity = 0.0;
 	A->rainfall = 0.0;
-	A->pressure = 0;
+	A->pressure = 0.0;
 	A->wind_speed = 0.0;
 	A->wind_direction = 0;
 	A->light = 0.0;
@@ -71,7 +71,7 @@ struct s_aggregate *calculate_aggregates() {
 	values->temperature = 0.0;
 	values->humidity = 0.0;
 	values->rainfall = 0.0;
-	values->pressure = 0;
+	values->pressure = 0.0;
 	values->wind_speed = 0.0;
 	values->wind_direction = 0;
 	values->light = 0.0;
@@ -91,7 +91,7 @@ struct s_aggregate *calculate_aggregates() {
 	(void)snprintf(buf, sizeof(buf), "average temperature: %.02f C", values->temperature);
 	log_debug(buf);
 
-	(void)snprintf(buf, sizeof(buf), "average pressure: %d hPa", (unsigned int)values->pressure);
+	(void)snprintf(buf, sizeof(buf), "average pressure: %.02f hPa", values->pressure);
 	log_debug(buf);
 
 	(void)snprintf(buf, sizeof(buf), "average humidity: %.02f %%", values->humidity);

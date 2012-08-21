@@ -21,7 +21,7 @@
 #include "gpio.h"
 #endif
 
-#define VERSION 	"0.1"
+#define VERSION 	"0.9.1"
 
 int opt_daemonize = -1;
 int opt_verbose = -1;

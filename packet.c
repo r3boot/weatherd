@@ -36,7 +36,7 @@ float temperature = 0;
 float humidity = 0;
 float rainfall = 0;
 float wind_speed = 0;
-long pressure = 0;
+long pressure = 0.0;
 long wind_direction = 0;
 float light = 0;
 long checksum = 0;
@@ -72,7 +72,7 @@ void packet_reset_vars() {
 	packet.rainfall = 0;
 	packet.wind_speed = 0;
 	packet.wind_direction = 0;
-	packet.pressure = 0;
+	packet.pressure = 0.0;
 	packet.light = 0;
 
 }

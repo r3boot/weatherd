@@ -210,9 +210,9 @@ void *datalogger_thread(void *queue_ptr) {
 			struct tm *tm_now = localtime(&dae->timestamp);
 			strftime(timestamp, sizeof(timestamp), "%Y%m%d%H%M%S", tm_now);
 
-			(void)snprintf(dle->line, sizeof(dle->line), "%s,%d,%.02f,%d,%.02f,%.02f,%.02f,%d,%.02f\n",
+			(void)snprintf(dle->line, sizeof(dle->line), "%s,%d,%.02f,%.02f,%.02f,%.02f,%.02f,%d,%.02f\n",
 				timestamp, dae->values->host_id, dae->values->temperature,
-				(unsigned int)dae->values->pressure, dae->values->humidity,
+				dae->values->pressure, dae->values->humidity,
 				dae->values->light, dae->values->wind_speed,
 				(unsigned int)dae->values->wind_direction, dae->values->rainfall);
 
