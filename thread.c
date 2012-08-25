@@ -253,6 +253,7 @@ void *graphite_thread(void *queue_ptr) {
 			entry->host_id = gae->values->host_id;
 			entry->temperature = gae->values->temperature;
 			entry->pressure = gae->values->pressure;
+			entry->c_pressure = gae->values->c_pressure;
 			entry->humidity = gae->values->humidity;
 			entry->light = gae->values->light;
 			entry->wind_speed = gae->values->wind_speed;

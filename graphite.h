@@ -11,6 +11,7 @@ struct s_graphite_entry {
 	float humidity;
 	float rainfall;
 	float pressure;
+	float c_pressure;
 	float wind_speed;
 	long wind_direction;
 	float light;

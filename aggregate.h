@@ -6,6 +6,7 @@ struct s_aggregate {
 	float humidity;
 	float rainfall;
 	float pressure;
+	float c_pressure;
 	float wind_speed;
 	long wind_direction;
 	float light;

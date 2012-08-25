@@ -279,12 +279,14 @@ int main(int argc, char *argv[]) {
 		setup_graphite(opt_graphite);
 	}
 
+	/*
 	if (config.daemonize != -1) {
 		if (daemon(1, 1) == -1) {
 			printf("%s: - failed to daemonize\n", __progname);
 			exit(1);
 		}
 	}
+	*/
 
 	if (setup_serial(config.serial_line, config.baudrate, opt_databits, opt_stopbits, opt_parity) == -1) {
 		log_error("failed to setup serial\n");

@@ -30,7 +30,7 @@ void load_config(const char *config, config_t *pconfig)
 	pconfig->gpio_device = "gpio1";
 	pconfig->gpio_pin = 16;
 #endif
-	pconfig->daemonize = 0;
+	pconfig->daemonize = -1;
 	pconfig->debug = 0;
 	pconfig->samples = 60;
 	pconfig->user = "nobody";

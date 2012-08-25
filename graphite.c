@@ -64,6 +64,9 @@ int graphite_write(struct s_graphite_entry *entry) {
 	(void)snprintf(buf, sizeof(buf), "%s.pressure %.02f %s\n", gc->namespace, entry->pressure, entry->timestamp);
 	write(s, &buf, strlen(buf));
 
+	(void)snprintf(buf, sizeof(buf), "%s.c_pressure %.02f %s\n", gc->namespace, entry->c_pressure, entry->timestamp);
+	write(s, &buf, strlen(buf));
+
 	(void)snprintf(buf, sizeof(buf), "%s.humidity %.02f %s\n", gc->namespace, entry->humidity, entry->timestamp);
 	write(s, &buf, strlen(buf));
 

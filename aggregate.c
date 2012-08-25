@@ -37,6 +37,7 @@ void reset_aggregates() {
 	A->humidity = 0.0;
 	A->rainfall = 0.0;
 	A->pressure = 0.0;
+	A->c_pressure = 0.0;
 	A->wind_speed = 0.0;
 	A->wind_direction = 0;
 	A->light = 0.0;
@@ -50,6 +51,7 @@ int update_aggregates(struct s_packet *packet) {
 	A->humidity += packet->humidity;
 	A->rainfall += packet->rainfall;
 	A->pressure += packet->pressure;
+	A->c_pressure += packet->c_pressure;
 	A->wind_speed += packet->wind_speed;
 	A->wind_direction += packet->wind_direction;
 	A->light += packet->light;
@@ -72,6 +74,7 @@ struct s_aggregate *calculate_aggregates() {
 	values->humidity = 0.0;
 	values->rainfall = 0.0;
 	values->pressure = 0.0;
+	values->c_pressure = 0.0;
 	values->wind_speed = 0.0;
 	values->wind_direction = 0;
 	values->light = 0.0;
@@ -80,6 +83,7 @@ struct s_aggregate *calculate_aggregates() {
 
 	if (num_packets > 0) {
 		values->pressure = (A->pressure / num_packets);
+		values->c_pressure = (A->c_pressure / num_packets);
 		values->wind_speed = (A->wind_speed / num_packets);
 		values->wind_direction = (A->wind_direction / num_packets);
 		values->temperature = (A->temperature / num_packets);
@@ -92,6 +96,9 @@ struct s_aggregate *calculate_aggregates() {
 	log_debug(buf);
 
 	(void)snprintf(buf, sizeof(buf), "average pressure: %.02f hPa", values->pressure);
+	log_debug(buf);
+
+	(void)snprintf(buf, sizeof(buf), "average c_pressure: %.02f hPa", values->c_pressure);
 	log_debug(buf);
 
 	(void)snprintf(buf, sizeof(buf), "average humidity: %.02f %%", values->humidity);

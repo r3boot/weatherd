@@ -36,7 +36,8 @@ float temperature = 0;
 float humidity = 0;
 float rainfall = 0;
 float wind_speed = 0;
-long pressure = 0.0;
+float pressure = 0.0;
+float c_pressure = 0.0;
 long wind_direction = 0;
 float light = 0;
 long checksum = 0;
@@ -73,6 +74,7 @@ void packet_reset_vars() {
 	packet.wind_speed = 0;
 	packet.wind_direction = 0;
 	packet.pressure = 0.0;
+	packet.c_pressure = 0.0;
 	packet.light = 0;
 
 }
@@ -100,6 +102,7 @@ struct s_packet *process_packet(char *payload) {
 		} else if (i == 1) {
 			packet->pressure = atol(strtok(NULL, ","));
 			c_checksum += packet->pressure;
+			packet->c_pressure = (((packet->pressure * 40) - 69400) / 10000) + 906.43;
 		} else if (i == 2) {
 			packet->humidity = atof(strtok(NULL, ","));
 			c_checksum += packet->humidity;
