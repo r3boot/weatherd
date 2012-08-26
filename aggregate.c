@@ -110,7 +110,7 @@ struct s_aggregate *calculate_aggregates() {
 	(void)snprintf(buf, sizeof(buf), "average light: %.02f lux", values->light);
 	log_debug(buf);
 
-	(void)snprintf(buf, sizeof(buf), "average wind speed: %.02f M/s", values->wind_speed);
+	(void)snprintf(buf, sizeof(buf), "average wind speed: %.02f KM/s", values->wind_speed);
 	log_debug(buf);
 
 	(void)snprintf(buf, sizeof(buf), "average wind direction: %d", (unsigned int)values->wind_direction);
