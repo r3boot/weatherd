@@ -9,6 +9,7 @@ struct s_aggregate {
 	float c_pressure;
 	float wind_speed;
 	long wind_direction;
+	float wind_chill;
 	float light;
 };
 

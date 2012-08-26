@@ -210,11 +210,12 @@ void *datalogger_thread(void *queue_ptr) {
 			struct tm *tm_now = localtime(&dae->timestamp);
 			strftime(timestamp, sizeof(timestamp), "%Y%m%d%H%M%S", tm_now);
 
-			(void)snprintf(dle->line, sizeof(dle->line), "%s,%d,%.02f,%.02f,%.02f,%.02f,%.02f,%d,%.02f\n",
+			(void)snprintf(dle->line, sizeof(dle->line), "%s,%d,%.02f,%.02f,%.02f,%.02f,%.02f,%d,%.02f,%.02f\n",
 				timestamp, dae->values->host_id, dae->values->temperature,
 				dae->values->pressure, dae->values->humidity,
 				dae->values->light, dae->values->wind_speed,
-				(unsigned int)dae->values->wind_direction, dae->values->rainfall);
+				(unsigned int)dae->values->wind_direction, dae->values->wind_chill,
+				dae->values->rainfall);
 
 			datalogger_write(dle);
 			free(dae);
@@ -258,6 +259,7 @@ void *graphite_thread(void *queue_ptr) {
 			entry->light = gae->values->light;
 			entry->wind_speed = gae->values->wind_speed;
 			entry->wind_direction = gae->values->wind_direction;
+			entry->wind_chill = gae->values->wind_chill;
 			entry->rainfall = gae->values->rainfall;
 			entry->timestamp = timestamp;
 

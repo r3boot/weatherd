@@ -3,6 +3,6 @@ SRCS= 	  weatherd.c logging.c config.c serial.c packet.c thread.c aggregate.c gp
 NOMAN=    weatherd
 
 CFLAGS+=-std=c99 -I. -Wall -Werror -g -DHAVE_GPIO
-LDFLAGS+=-lpthread
+LDFLAGS+=-lpthread -lm
 
 .include <bsd.prog.mk>

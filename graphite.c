@@ -79,6 +79,9 @@ int graphite_write(struct s_graphite_entry *entry) {
 	(void)snprintf(buf, sizeof(buf), "%s.wind_direction %d %s\n", gc->namespace, (unsigned int)entry->wind_direction, entry->timestamp);
 	write(s, &buf, strlen(buf));
 
+	(void)snprintf(buf, sizeof(buf), "%s.wind_chill %.02f %s\n", gc->namespace, entry->wind_chill, entry->timestamp);
+	write(s, &buf, strlen(buf));
+
 	(void)snprintf(buf, sizeof(buf), "%s.rainfall %.02f %s\n", gc->namespace, entry->rainfall, entry->timestamp);
 	write(s, &buf, strlen(buf));
 
