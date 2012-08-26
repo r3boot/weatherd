@@ -31,7 +31,7 @@ void packet_reset_vars() {
 
 struct s_packet *process_packet(char *payload) {
 	struct s_packet *packet = NULL;
-	int i = 0;
+	int i, ws_kmh = 0;
 	long p_checksum, c_checksum = 0;
 
 	if (!(packet = (struct s_packet *)malloc(sizeof(struct s_packet)))) {
@@ -79,7 +79,13 @@ struct s_packet *process_packet(char *payload) {
 		}
 	}
 
-	packet->wind_chill = 13.12 + 0.6215 * packet->temperature - 11.37 * sqrt(packet->wind_speed * 3.6) + 0.3965 * 15.28 * sqrt(packet->wind_speed * 3.6);
+	ws_kmh = packet->wind_speed / (1000 * 60 * 60);
+
+	if (ws_kmh >= 4) { // wind chill is only measured when wind_speed >= 4 KM/h
+		packet->wind_chill = 13.12 + 0.6215 * packet->temperature - 11.37 * sqrt(ws_kmh) + 0.3965 * 15.28 * sqrt(ws_kmh);
+	} else {
+		packet->wind_chill = packet->temperature;
+	}
 
 	return packet;
 }
