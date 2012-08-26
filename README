@@ -1,0 +1,55 @@
+==> weatherd
+
+The server-side component for my arduino-based weatherstation
+
+==> Requirements
+* posix compliant unix platform
+* customized serial port
+* (optional) GPIO support
+
+==> Platforms
+For now, only OpenBSD on a Soekris 4801 is tested and supported. Other platforms
+should work, but ymmv. The makefile is written as an OpenBSD port and will
+require significant rewriting to be usable on non-OpenBSD platforms.
+
+==> Usage
+$ ./weatherd -h
+Usage: weatherd [options]
+
+Options:
+ -h,        --help          show this help message and exit
+ -V,        --version       show the program version and exit
+ -v,        --verbose       show verbose output (-1)
+
+Server options:
+ -d,        --daemonize     daemonize on startup (-1)
+ -u USER,   --user=USER     user to run as (nobody)
+ -c PATH,   --chroot=PATH   chroot to this directory (/var/empty)
+ -a N       --samples=N     aggregate N samples (60)
+
+Serial options:
+ -l PORT,   --line=PORT     serial port to connect to (/dev/tty01)
+ -s SPEED,  --speed=SPEED   baudrate to use (57600)
+ -p PARITY, --parity=PARITY use even/odd/none parity (none)
+ -D N,      --databits=N    use N databits (8)
+ -S N,      --stopbits=N    use N stopbits (1)
+
+Output options:
+ -L PATH,   --datalog=PATH  log aggregates to this directory (/srv/weatherd)
+
+GPIO options:
+ -r,        --reset         reset the weatherstation main unit (-1)
+ -G,        --gpiodev       gpio device used for resetting (gpio1)
+ -P,        --gpiopin       gpio pin used for resetting (16)
+
+==> Datalogger
+When turned on, weatherd will log timestamped values to a timestamped comma-
+separated file.
+
+==> Graphite
+When turned on (syntax: -g <host>:<port>:<namespace>), submit timestamped values
+to a graphite install
+
+==> GPIO
+When enabled, configured and built, you can reset the arduino by temporarily
+cutting the +5v line running towards the arduino with the -r flag.
