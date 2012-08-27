@@ -15,6 +15,8 @@ struct s_aggregate *V = NULL;
 int num_packets = 0;
 int has_data = 0;
 
+char direction[][3] = { "N\0", "NE\0", "E\0", "SE\0", "S\0", "SW\0", "W\0", "NW\0" };
+
 void aggregates_timer_handler(int signum) {
 	V = calculate_aggregates();
 	reset_aggregates();
@@ -113,7 +115,7 @@ struct s_aggregate *calculate_aggregates() {
 	(void)snprintf(buf, sizeof(buf), "average wind speed: %.02f KM/s", values->wind_speed);
 	log_debug(buf);
 
-	(void)snprintf(buf, sizeof(buf), "average wind direction: %d", (unsigned int)values->wind_direction);
+	(void)snprintf(buf, sizeof(buf), "average wind direction: %s", direction[values->wind_direction]);
 	log_debug(buf);
 
 	(void)snprintf(buf, sizeof(buf), "average wind chill: %.02f C", values->wind_chill);

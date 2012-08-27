@@ -54,7 +54,8 @@ struct s_packet *process_packet(char *payload) {
 			c_checksum += packet->pressure;
 
 			// packet->c_pressure = (packet->pressure - (packet->temperature * 1638.13)) + 565;
-			packet->c_pressure = (((packet->pressure * 40) - 69400) / 10000) + 916.43;
+			// packet->c_pressure = (((packet->pressure * 40) - 69400) / 10000) + 916.43;
+			packet->c_pressure = (packet->pressure / 40) + 337;
 		} else if (i == 2) {
 			packet->humidity = atof(strtok(NULL, ","));
 			c_checksum += packet->humidity;
