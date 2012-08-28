@@ -63,7 +63,7 @@ struct s_packet *process_packet(char *payload) {
 			packet->light = atof(strtok(NULL, ","));
 			c_checksum += packet->light;
 		} else if (i == 4) {
-			packet->wind_speed = atof(strtok(NULL, ","));
+			packet->wind_speed = atof(strtok(NULL, ",")) * 3.0;
 			c_checksum += (packet->wind_speed / (1000 * 60 * 60));
 		} else if (i == 5) {
 			packet->wind_direction = atol(strtok(NULL, ","));
