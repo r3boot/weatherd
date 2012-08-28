@@ -47,17 +47,16 @@ struct s_packet *process_packet(char *payload) {
 	c_checksum += packet->host_id;
 	for (i=0; i<7; i++) {
 		if (i == 0) {
-			packet->temperature = atof(strtok(NULL, ","));
+			packet->temperature = atof(strtok(NULL, ",")) - 1.0;
 			c_checksum += packet->temperature;
 		} else if (i == 1) {
 			packet->pressure = atol(strtok(NULL, ","));
 			c_checksum += packet->pressure;
 
-			// packet->c_pressure = (packet->pressure - (packet->temperature * 1638.13)) + 565;
-			// packet->c_pressure = (((packet->pressure * 40) - 69400) / 10000) + 916.43;
-			packet->c_pressure = (packet->pressure / 40) + (348.2 - packet->temperature);
+			//packet->c_pressure = (packet->pressure / 40) + (348.2 - packet->temperature);
+			packet->c_pressure = (packet->pressure / 400) + (963.5 - packet->temperature);
 		} else if (i == 2) {
-			packet->humidity = atof(strtok(NULL, ","));
+			packet->humidity = atof(strtok(NULL, ",")) + 7.5;
 			c_checksum += packet->humidity;
 		} else if (i == 3) {
 			packet->light = atof(strtok(NULL, ","));
