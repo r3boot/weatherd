@@ -20,6 +20,7 @@ int64_t get_time_us();
 int64_t get_time_sec();
 int int_to_rate(int baudrate);
 int serial_set_baudrate(int baudrate);
+int reset_serial();
 int setup_serial(char *port_name, int baudrate, int databits, int stopbits, int parity);
 int serial_read(char *data, int len, int64_t usecs);
 int serial_readln(char *line);

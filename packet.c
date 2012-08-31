@@ -26,13 +26,13 @@ void packet_reset_vars() {
 	packet.pressure = 0.0;
 	packet.c_pressure = 0.0;
 	packet.light = 0;
-
+	packet.checksum = 0;
 }
 
 struct s_packet *process_packet(char *payload) {
 	struct s_packet *packet = NULL;
 	int i = 0;
-	long p_checksum, c_checksum = 0;
+	int p_checksum, c_checksum = 0;
 
 	if (!(packet = (struct s_packet *)malloc(sizeof(struct s_packet)))) {
 		log_debug("process_packet: malloc failed");
@@ -54,7 +54,7 @@ struct s_packet *process_packet(char *payload) {
 			c_checksum += packet->pressure;
 
 			//packet->c_pressure = (packet->pressure / 40) + (348.2 - packet->temperature);
-			packet->c_pressure = (packet->pressure / 400) + (963.5 - packet->temperature);
+			packet->c_pressure = (packet->pressure / 400) + (968.5 - packet->temperature);
 		} else if (i == 2) {
 			packet->humidity = atof(strtok(NULL, ",")) + 7.5;
 			c_checksum += packet->humidity;
@@ -78,6 +78,8 @@ struct s_packet *process_packet(char *payload) {
 			}
 		}
 	}
+
+	packet->checksum = c_checksum;
 
 	if (packet->wind_speed >= 4) { // wind chill is only measured when wind_speed >= 4 KM/h
 		packet->wind_chill = 13.12 + 0.6215 * packet->temperature - 11.37 * sqrt(packet->wind_speed) + 0.3965 * 15.28 * sqrt(packet->wind_speed);

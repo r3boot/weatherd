@@ -103,7 +103,13 @@ int serial_set_baudrate(int baudrate) {
 	return 0;
 }
 
+int reset_serial() {
+	return setup_serial(line, speed, databits, stopbits, parity);
+}
+
 int setup_serial(char *port_name, int baudrate, int databits, int stopbits, int parity) {
+	line = port_name;
+	speed = baudrate;
 
 	if (databits < 5 || databits > 8) {
 		log_error("databits has to be between 5 and 8");

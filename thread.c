@@ -24,6 +24,7 @@
 #define QUEUE_SIZE 1048576
 #define RESET_STATS_TIME 86400
 #define AGGREGATE_TIME 60
+#define MAX_SAME_CHECKSUM 5
 
 // serial -> packet
 pthread_mutex_t rp_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -101,6 +102,10 @@ void *packet_thread(void *queue_ptr) {
 	struct pa_entry *pae = NULL;
 	struct s_packet *packet = NULL;
 
+	char buf[255];
+	int last_checksum = 0;
+	int same_checksum = 0;
+
 	log_debug("starting packet thread");
 	while (1) {
 		pthread_mutex_lock(&rp_mutex);
@@ -125,10 +130,31 @@ void *packet_thread(void *queue_ptr) {
 			pae->packet = packet;
 			free(packet);
 
-			pthread_mutex_lock(&pa_mutex);
-			SIMPLEQ_INSERT_TAIL(&pa_head, pae, pa_entries);
-			pthread_cond_signal(&pa_cond);
-			pthread_mutex_unlock(&pa_mutex);
+			if (pae->packet->checksum != last_checksum) {
+				last_checksum = pae->packet->checksum;
+				same_checksum = 0;
+			} else {
+				same_checksum += 1;
+			}
+
+			/*
+			printf("checksum:      %d\n", pae->packet->checksum);
+			printf("last_checksum: %d\n", last_checksum);
+			printf("same_checksum: %d\n", same_checksum);
+			*/
+
+			if (same_checksum <= MAX_SAME_CHECKSUM) {
+				pthread_mutex_lock(&pa_mutex);
+				SIMPLEQ_INSERT_TAIL(&pa_head, pae, pa_entries);
+				pthread_cond_signal(&pa_cond);
+				pthread_mutex_unlock(&pa_mutex);
+			} else {
+				(void)snprintf(buf, sizeof(buf), "found the same values over %d samples", MAX_SAME_CHECKSUM);
+				log_info(buf);
+				gpio_reset();
+				sleep(10);
+				reset_serial();
+			}
 
 		}
 

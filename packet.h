@@ -11,6 +11,7 @@ struct s_packet {
 	long wind_direction;
 	float wind_chill;
 	float light;
+	int checksum;
 };
 
 void packet_reset_vars();
